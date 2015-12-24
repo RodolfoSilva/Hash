@@ -19,8 +19,8 @@ elements. You apply matchers to expression elements.
 
 ### Expression Types
 
-| Expression                     | Definition                                                      |
-| ------------------------------ | --------------------------------------------------------------- |
+| Expression  | Definition                                                                         |
+| ----------- | ---------------------------------------------------------------------------------- |
 | ``{n}``     | Represents a numeric key. Will match any string or numeric key.                    |
 | ``{s}``     | Represents a string. Will match any string value including numeric string values.  |
 | ``Foo``     | Matches keys with the exact same value.                                            |
@@ -28,21 +28,20 @@ elements. You apply matchers to expression elements.
 All expression elements are supported by all methods. In addition to expression
 elements, you can use attribute matching with certain methods. They are ``extract()``,
 ``combine()``, ``format()``, ``check()``, ``map()``, ``reduce()``,
-``apply()``, ``sort()`` and ``nest()``.
+``apply()``, ``sort()``, ``insert()``, ``remove()`` and ``nest()``.
 
 ### Attribute Matching Types
 
-| Matcher            | Definition                                                      |
-| ------------------ | --------------------------------------------------------------- |
-| ``[id]``           | Match elements with a given array key.                          |
-| ``[id=2]``         | Match elements with id equal to 2.                              |
-| ``[id!=2]``        | Match elements with id not equal to 2.                          |
-| ``[id>2]``         | Match elements with id greater than 2.                          |
-| ``[id>=2]``        | Match elements with id greater than or equal to 2.              |
-| ``[id<2]``         | Match elements with id less than 2                              |
-| ``[id<=2]``        | Match elements with id less than or equal to 2.                 |
-| ``[text=/.../]``   | Match elements that have values matching                        |
-|                    | the regular expression inside ``...``.                          |
+| Matcher            | Definition                                                                      |
+| ------------------ | ------------------------------------------------------------------------------- |
+| ``[id]``           | Match elements with a given array key.                                          |
+| ``[id=2]``         | Match elements with id equal to 2.                                              |
+| ``[id!=2]``        | Match elements with id not equal to 2.                                          |
+| ``[id>2]``         | Match elements with id greater than 2.                                          |
+| ``[id>=2]``        | Match elements with id greater than or equal to 2.                              |
+| ``[id<2]``         | Match elements with id less than 2                                              |
+| ``[id<=2]``        | Match elements with id less than or equal to 2.                                 |
+| ``[text=/.../]``   | Match elements that have values matching the regular expression inside ``...``. |
 
 ### Hash::get(array $data, $path)
 #### Return ``mixed``
@@ -55,183 +54,211 @@ supported. Use ``get()`` when you want exactly one value out of an array.
 #### Return ``array``
 
 ``Hash::extract()`` supports all expression, and matcher components of
-`hash-path-syntax`. You can use extract to retrieve data from arrays,
+[Hash path syntax](#hash-path-syntax). You can use extract to retrieve data from arrays,
 along arbitrary paths quickly without having to loop through the data
 structures. Instead you use path expressions to qualify which elements you
-want returned :
+want returned.
 
 ```php
 // Common Usage:
-$users = $this->User->find("all");
-$results = Hash::extract($users, '{n}.User.id');
+$users = [
+    ['id' => 1, 'name' => 'mark'],
+    ['id' => 2, 'name' => 'jane'],
+    ['id' => 3, 'name' => 'sally'],
+    ['id' => 4, 'name' => 'jose'],
+];
+$results = Hash::extract($users, '{n}.id');
 // $results equals:
-// array(1,2,3,4,5,...);
+// [1,2,3,4];
 ```
 ### Hash::insert(array $data, $path, $values = null)
 #### Return ``array``
 
-Inserts $values into an array as defined by $path. This method **only** supports
-the expression types of `hash-path-syntax`:
+Inserts ``$values`` into an array as defined by ``$path``.
 
 ```php
-$a = array(
-    'pages' => array('name' => 'page')
-);
-$result = Hash::insert($a, 'files', array('name' => 'files'));
+$a = [
+    'pages' => ['name' => 'page']
+];
+$result = Hash::insert($a, 'files', ['name' => 'files']);
 // $result now looks like:
-Array
-(
-    [pages] => Array
-        (
-            [name] => page
-        )
-    [files] => Array
-        (
-            [name] => files
-        )
-)
+[
+    [pages] => [
+        [name] => page
+    ]
+    [files] => [
+        [name] => files
+    ]
+]
 ```
 
 You can use paths using ``{n}`` and ``{s}`` to insert data into multiple
 points:
 
 ```php
-$users = $this->User->find('all');
-$users = Hash::insert($users, '{n}.User.new', 'value');
+$users = Hash::insert($users, '{n}.new', 'value');
+```
+
+Attribute matchers work with ``insert()`` as well:
+
+```php
+$data = [
+    0 => ['up' => true, 'Item' => ['id' => 1, 'title' => 'first']],
+    1 => ['Item' => ['id' => 2, 'title' => 'second']],
+    2 => ['Item' => ['id' => 3, 'title' => 'third']],
+    3 => ['up' => true, 'Item' => ['id' => 4, 'title' => 'fourth']],
+    4 => ['Item' => ['id' => 5, 'title' => 'fifth']],
+];
+$result = Hash::insert($data, '{n}[up].Item[id=4].new', 9);
+/* $result now looks like:
+    [
+        ['up' => true, 'Item' => ['id' => 1, 'title' => 'first']],
+        ['Item' => ['id' => 2, 'title' => 'second']],
+        ['Item' => ['id' => 3, 'title' => 'third']],
+        ['up' => true, 'Item' => ['id' => 4, 'title' => 'fourth', 'new' => 9]],
+        ['Item' => ['id' => 5, 'title' => 'fifth']],
+    ]
+*/
 ```
 
 ### Hash::remove(array $data, $path = null)
 #### Return ``array``
 
-Removes all elements from an array that match $path. This method **only** supports
-the expression types of `hash-path-syntax`:
+Removes all elements from an array that match ``$path``.
 
 ```php
-$a = array(
-    'pages' => array('name' => 'page'),
-    'files' => array('name' => 'files')
-);
+$a = [
+    'pages' => ['name' => 'page'],
+    'files' => ['name' => 'files']
+];
 $result = Hash::remove($a, 'files');
 /* $result now looks like:
-    Array
-    (
-        [pages] => Array
-            (
-                [name] => page
-            )
+    [
+        [pages] => [
+            [name] => page
+        ]
 
-    )
+    ]
 */
 ```
 Using ``{n}`` and ``{s}`` will allow you to remove multiple values at once.
+You can also use attribute matchers with ``remove()``:
+
+```php
+$data = [
+    0 => ['clear' => true, 'Item' => ['id' => 1, 'title' => 'first']],
+    1 => ['Item' => ['id' => 2, 'title' => 'second']],
+    2 => ['Item' => ['id' => 3, 'title' => 'third']],
+    3 => ['clear' => true, 'Item' => ['id' => 4, 'title' => 'fourth']],
+    4 => ['Item' => ['id' => 5, 'title' => 'fifth']],
+];
+$result = Hash::remove($data, '{n}[clear].Item[id=4]');
+/* $result now looks like:
+    [
+        ['clear' => true, 'Item' => ['id' => 1, 'title' => 'first']],
+        ['Item' => ['id' => 2, 'title' => 'second']],
+        ['Item' => ['id' => 3, 'title' => 'third']],
+        ['clear' => true],
+        ['Item' => ['id' => 5, 'title' => 'fifth']],
+    ]
+*/
+```
 
 ### Hash::combine(array $data, $keyPath = null, $valuePath = null, $groupPath = null)
 #### Return ``array``
 
-Creates an associative array using a $keyPath as the path to build its keys,
-and optionally $valuePath as path to get the values. If $valuePath is not
+Creates an associative array using a ``$keyPath`` as the path to build its keys,
+and optionally ``$valuePath`` as path to get the values. If ``$valuePath`` is not
 specified, or doesn't match anything, values will be initialized to null.
 You can optionally group the values by what is obtained when following the
-path specified in $groupPath.:
+path specified in ``$groupPath``.
 
 ```php
-$a = array(
-    array(
-        'User' => array(
+$a = [
+    [
+        'User' => [
             'id' => 2,
             'group_id' => 1,
-            'Data' => array(
+            'Data' => [
                 'user' => 'mariano.iglesias',
                 'name' => 'Mariano Iglesias'
-            )
-        )
-    ),
-    array(
-        'User' => array(
+            ]
+        ]
+    ],
+    [
+        'User' => [
             'id' => 14,
             'group_id' => 2,
-            'Data' => array(
+            'Data' => [
                 'user' => 'phpnut',
                 'name' => 'Larry E. Masters'
-            )
-        )
-    ),
-);
+            ]
+        ]
+    ],
+];
 
 $result = Hash::combine($a, '{n}.User.id');
 /* $result now looks like:
-    Array
-    (
+    [
         [2] =>
         [14] =>
-    )
+    ]
 */
 
 $result = Hash::combine($a, '{n}.User.id', '{n}.User.Data');
 /* $result now looks like:
-    Array
-    (
-        [2] => Array
-            (
+    [
+        [2] => [
                 [user] => mariano.iglesias
                 [name] => Mariano Iglesias
-            )
-        [14] => Array
-            (
+        ]
+        [14] => [
                 [user] => phpnut
                 [name] => Larry E. Masters
-            )
-    )
+        ]
+    ]
 */
 
 $result = Hash::combine($a, '{n}.User.id', '{n}.User.Data.name');
 /* $result now looks like:
-    Array
-    (
+    [
         [2] => Mariano Iglesias
         [14] => Larry E. Masters
-    )
+    ]
 */
 
 $result = Hash::combine($a, '{n}.User.id', '{n}.User.Data', '{n}.User.group_id');
 /* $result now looks like:
-    Array
-    (
-        [1] => Array
-            (
-                [2] => Array
-                    (
+    [
+        [1] => [
+                [2] => [
                         [user] => mariano.iglesias
                         [name] => Mariano Iglesias
-                    )
-            )
-        [2] => Array
-            (
-                [14] => Array
-                    (
+                ]
+        ]
+        [2] => [
+                [14] => [
                         [user] => phpnut
                         [name] => Larry E. Masters
-                    )
-            )
-    )
+                ]
+        ]
+    ]
 */
 
 $result = Hash::combine($a, '{n}.User.id', '{n}.User.Data.name', '{n}.User.group_id');
 /* $result now looks like:
-    Array
-    (
-        [1] => Array
-            (
+    [
+        [1] => [
                 [2] => Mariano Iglesias
-            )
-        [2] => Array
-            (
+        ]
+        [2] => [
                 [14] => Larry E. Masters
-            )
-    )
+        ]
+    ]
 */
 ```
-You can provide array's for both $keyPath and $valuePath. If you do this,
+
+You can provide array's for both ``$keyPath`` and ``$valuePath``. If you do this,
 the first value will be used as a format string, for values extracted by the
 other paths:
 
@@ -239,34 +266,30 @@ other paths:
 $result = Hash::combine(
     $a,
     '{n}.User.id',
-    array('%s: %s', '{n}.User.Data.user', '{n}.User.Data.name'),
+    ['%s: %s', '{n}.User.Data.user', '{n}.User.Data.name'],
     '{n}.User.group_id'
 );
 /* $result now looks like:
-    Array
-    (
-        [1] => Array
-            (
+    [
+        [1] => [
                 [2] => mariano.iglesias: Mariano Iglesias
-            )
-        [2] => Array
-            (
+        ]
+        [2] => [
                 [14] => phpnut: Larry E. Masters
-            )
-    )
+        ]
+    ]
 */
 
 $result = Hash::combine(
     $a,
-    array('%s: %s', '{n}.User.Data.user', '{n}.User.Data.name'),
+    ['%s: %s', '{n}.User.Data.user', '{n}.User.Data.name'],
     '{n}.User.id'
 );
 /* $result now looks like:
-    Array
-    (
+    [
         [mariano.iglesias: Mariano Iglesias] => 2
         [phpnut: Larry E. Masters] => 14
-    )
+    ]
 */
 ```
 
@@ -277,54 +300,52 @@ Returns a series of values extracted from an array, formatted with a
 format string:
 
 ```php
-$data = array(
-    array(
-        'Person' => array(
+$data = [
+    [
+        'Person' => [
             'first_name' => 'Nate',
             'last_name' => 'Abele',
             'city' => 'Boston',
             'state' => 'MA',
             'something' => '42'
-        )
-    ),
-    array(
-        'Person' => array(
+        ]
+    ],
+    [
+        'Person' => [
             'first_name' => 'Larry',
             'last_name' => 'Masters',
             'city' => 'Boondock',
             'state' => 'TN',
             'something' => '{0}'
-        )
-    ),
-    array(
-        'Person' => array(
+        ]
+    ],
+    [
+        'Person' => [
             'first_name' => 'Garrett',
             'last_name' => 'Woodworth',
             'city' => 'Venice Beach',
             'state' => 'CA',
             'something' => '{1}'
-        )
-    )
-);
+        ]
+    ]
+];
 
-$res = Hash::format($data, array('{n}.Person.first_name', '{n}.Person.something'), '%2$d, %1$s');
+$res = Hash::format($data, ['{n}.Person.first_name', '{n}.Person.something'], '%2$d, %1$s');
 /*
-Array
-(
+[
     [0] => 42, Nate
     [1] => 0, Larry
     [2] => 0, Garrett
-)
+]
 */
 
-$res = Hash::format($data, array('{n}.Person.first_name', '{n}.Person.something'), '%1$s, %2$d');
+$res = Hash::format($data, ['{n}.Person.first_name', '{n}.Person.something'], '%1$s, %2$d');
 /*
-Array
-(
+[
     [0] => Nate, 42
     [1] => Larry, 0
     [2] => Garrett, 0
-)
+]
 */
 ```
 
@@ -335,16 +356,16 @@ Determines if one Hash or array contains the exact keys and values
 of another:
 
 ```php
-$a = array(
-    0 => array('name' => 'main'),
-    1 => array('name' => 'about')
-);
-$b = array(
-    0 => array('name' => 'main'),
-    1 => array('name' => 'about'),
-    2 => array('name' => 'contact'),
+$a = [
+    0 => ['name' => 'main'],
+    1 => ['name' => 'about']
+];
+$b = [
+    0 => ['name' => 'main'],
+    1 => ['name' => 'about'],
+    2 => ['name' => 'contact'],
     'a' => 'b'
-);
+];
 
 $result = Hash::contains($a, $a);
 // true
@@ -360,63 +381,67 @@ $result = Hash::contains($b, $a);
 Checks if a particular path is set in an array:
 
 ```php
-$set = array(
-    'My Index 1' => array('First' => 'The first item')
-);
+$set = [
+    'My Index 1' => ['First' => 'The first item']
+];
 $result = Hash::check($set, 'My Index 1.First');
-// $result == True
+// $result == true
 
 $result = Hash::check($set, 'My Index 1');
-// $result == True
+// $result == true
 
-$set = array(
-    'My Index 1' => array('First' =>
-        array('Second' =>
-            array('Third' =>
-                array('Fourth' => 'Heavy. Nesting.'))))
-);
+$set = [
+    'My Index 1' => [
+        'First' => [
+            'Second' => [
+                'Third' => [
+                    'Fourth' => 'Heavy. Nesting.'
+                ]
+            ]
+        ]
+    ]
+];
 $result = Hash::check($set, 'My Index 1.First.Second');
-// $result == True
+// $result == true
 
 $result = Hash::check($set, 'My Index 1.First.Second.Third');
-// $result == True
+// $result == true
 
 $result = Hash::check($set, 'My Index 1.First.Second.Third.Fourth');
-// $result == True
+// $result == true
 
 $result = Hash::check($set, 'My Index 1.First.Seconds.Third.Fourth');
-// $result == False
+// $result == false
 ```
 
-### Hash::filter(array $data, $callback = array('Hash', 'filter'))
+### Hash::filter(array $data, $callback = [,'Hash', 'filter'])
 #### Return ``array``
 
 Filters empty elements out of array, excluding '0'. You can also supply a
-custom $callback to filter the array elements. You callback should return
+custom ``$callback`` to filter the array elements. You callback should return
 ``false`` to remove elements from the resulting array:
 
 ```php
-$data = array(
+$data = [
     '0',
     false,
     true,
     0,
-    array('one thing', 'I can tell you', 'is you got to be', false)
-);
+    ['one thing', 'I can tell you', 'is you got to be', false]
+];
 $res = Hash::filter($data);
 
 /* $data now looks like:
-    Array (
+    [
         [0] => 0
         [2] => true
         [3] => 0
-        [4] => Array
-            (
+        [4] => [
                 [0] => one thing
                 [1] => I can tell you
                 [2] => is you got to be
-            )
-    )
+        ]
+    ]
 */
 ```
 
@@ -426,19 +451,19 @@ $res = Hash::filter($data);
 Collapses a multi-dimensional array into a single dimension:
 
 ```php
-$arr = array(
-    array(
-        'Post' => array('id' => '1', 'title' => 'First Post'),
-        'Author' => array('id' => '1', 'user' => 'Kyle'),
-    ),
-    array(
-        'Post' => array('id' => '2', 'title' => 'Second Post'),
-        'Author' => array('id' => '3', 'user' => 'Crystal'),
-    ),
-);
+$arr = [
+    [
+        'Post' => ['id' => '1', 'title' => 'First Post'],
+        'Author' => ['id' => '1', 'user' => 'Kyle'],
+    ],
+    [
+        'Post' => ['id' => '2', 'title' => 'Second Post'],
+        'Author' => ['id' => '3', 'user' => 'Crystal'],
+    ],
+];
 $res = Hash::flatten($arr);
 /* $res now looks like:
-    Array (
+    [
         [0.Post.id] => 1
         [0.Post.title] => First Post
         [0.Author.id] => 1
@@ -447,7 +472,7 @@ $res = Hash::flatten($arr);
         [1.Post.title] => Second Post
         [1.Author.id] => 3
         [1.Author.user] => Crystal
-    )
+    ]
 */
 ```
 
@@ -458,7 +483,7 @@ Expands an array that was previously flattened with
 `Hash::flatten()`:
 
 ```php
-$data = array(
+$data = [
     '0.Post.id' => 1,
     '0.Post.title' => First Post,
     '0.Author.id' => 1,
@@ -467,19 +492,19 @@ $data = array(
     '1.Post.title' => Second Post,
     '1.Author.id' => 3,
     '1.Author.user' => Crystal,
-);
+];
 $res = Hash::expand($data);
 /* $res now looks like:
-array(
-    array(
-        'Post' => array('id' => '1', 'title' => 'First Post'),
-        'Author' => array('id' => '1', 'user' => 'Kyle'),
-    ),
-    array(
-        'Post' => array('id' => '2', 'title' => 'Second Post'),
-        'Author' => array('id' => '3', 'user' => 'Crystal'),
-    ),
-);
+[
+    [
+        'Post' => ['id' => '1', 'title' => 'First Post'],
+        'Author' => ['id' => '1', 'user' => 'Kyle'],
+    ],
+    [
+        'Post' => ['id' => '2', 'title' => 'Second Post'],
+        'Author' => ['id' => '3', 'user' => 'Crystal'],
+    ],
+];
 */
 ```
 
@@ -496,44 +521,41 @@ containing strings (unlike ``array_merge_recursive``).
 > typecasts non-array parameters into arrays.
 
 ```php
-$array = array(
-    array(
+$array = [
+    [
         'id' => '48c2570e-dfa8-4c32-a35e-0d71cbdd56cb',
         'name' => 'mysql raleigh-workshop-08 < 2008-09-05.sql ',
         'description' => 'Importing an sql dump'
-    ),
-    array(
+    ],
+    [
         'id' => '48c257a8-cf7c-4af2-ac2f-114ecbdd56cb',
         'name' => 'pbpaste | grep -i Unpaid | pbcopy',
         'description' => 'Remove all lines that say "Unpaid".',
-    )
-);
+    ]
+];
 $arrayB = 4;
-$arrayC = array(0 => "test array", "cats" => "dogs", "people" => 1267);
-$arrayD = array("cats" => "felines", "dog" => "angry");
+$arrayC = [0 => "test array", "cats" => "dogs", "people" => 1267];
+$arrayD = ["cats" => "felines", "dog" => "angry"];
 $res = Hash::merge($array, $arrayB, $arrayC, $arrayD);
 
 /* $res now looks like:
-Array
-(
-    [0] => Array
-        (
+[
+    [0] => [
             [id] => 48c2570e-dfa8-4c32-a35e-0d71cbdd56cb
             [name] => mysql raleigh-workshop-08 < 2008-09-05.sql
             [description] => Importing an sql dump
-        )
-    [1] => Array
-        (
+    ]
+    [1] => [
             [id] => 48c257a8-cf7c-4af2-ac2f-114ecbdd56cb
             [name] => pbpaste | grep -i Unpaid | pbcopy
             [description] => Remove all lines that say "Unpaid".
-        )
+    ]
     [2] => 4
     [3] => test array
     [cats] => felines
     [people] => 1267
     [dog] => angry
-)
+]
 */
 ```
 
@@ -543,13 +565,14 @@ Array
 Checks to see if all the values in the array are numeric:
 
 ```php
-$data = array('one');
+$data = ['one'];
 $res = Hash::numeric(array_keys($data));
 // $res is true
 
-$data = array(1 => 'one');
+$data = [1 => 'one'];
 $res = Hash::numeric($data);
 // $res is false
+
 ```
 
 ### Hash::dimensions (array $data)
@@ -559,23 +582,23 @@ Counts the dimensions of an array. This method will only
 consider the dimension of the first element in the array:
 
 ```php
-$data = array('one', '2', 'three');
+$data = ['one', '2', 'three'];
 $result = Hash::dimensions($data);
 // $result == 1
 
-$data = array('1' => '1.1', '2', '3');
+$data = ['1' => '1.1', '2', '3'];
 $result = Hash::dimensions($data);
 // $result == 1
 
-$data = array('1' => array('1.1' => '1.1.1'), '2', '3' => array('3.1' => '3.1.1'));
+$data = ['1' => ['1.1' => '1.1.1'], '2', '3' => ['3.1' => '3.1.1']];
 $result = Hash::dimensions($data);
 // $result == 2
 
-$data = array('1' => '1.1', '2', '3' => array('3.1' => '3.1.1'));
+$data = ['1' => '1.1', '2', '3' => ['3.1' => '3.1.1']];
 $result = Hash::dimensions($data);
 // $result == 1
 
-$data = array('1' => array('1.1' => '1.1.1'), '2', '3' => array('3.1' => array('3.1.1' => '3.1.1.1')));
+$data = ['1' => ['1.1' => '1.1.1'], '2', '3' => ['3.1' => ['3.1.1' => '3.1.1.1']]];
 $result = Hash::dimensions($data);
 // $result == 2
 ```
@@ -587,12 +610,12 @@ Similar to ``Hash::dimensions()``, however this method returns,
 the deepest number of dimensions of any element in the array:
 
 ```php
-$data = array('1' => '1.1', '2', '3' => array('3.1' => '3.1.1'));
-$result = Hash::maxDimensions($data, true);
+$data = ['1' => '1.1', '2', '3' => ['3.1' => '3.1.1']];
+$result = Hash::maxDimensions($data);
 // $result == 2
 
-$data = array('1' => array('1.1' => '1.1.1'), '2', '3' => array('3.1' => array('3.1.1' => '3.1.1.1')));
-$result = Hash::maxDimensions($data, true);
+$data = ['1' => ['1.1' => '1.1.1'], '2', '3' => ['3.1' => ['3.1.1' => '3.1.1.1']]];
+$result = Hash::maxDimensions($data);
 // $result == 3
 ```
 
@@ -602,47 +625,52 @@ Creates a new array, by extracting $path, and mapping $function
 across the results. You can use both expression and matching elements with
 this method.
 
+```php
+// Call the noop function $this->noop() on every element of $data
+$result = Hash::map($data, "{n}", [$this, 'noop']);
+
+public function noop(array $array)
+{
+    // Do stuff to array and return the result
+    return $array;
+}
+```
 ### Hash::reduce(array $data, $path, $function)
 
-Creates a single value, by extracting $path, and reducing the extracted
-results with $function. You can use both expression and matching elements
+Creates a single value, by extracting ``$path``, and reducing the extracted
+results with ``$function``. You can use both expression and matching elements
 with this method.
 
 ### Hash::apply(array $data, $path, $function)
 
-Apply a callback to a set of extracted values using $function. The function
+Apply a callback to a set of extracted values using ``$function``. The function
 will get the extracted values as the first argument.
 
 ### Hash::sort(array $data, $path, $dir, $type = 'regular')
 #### Return ``array``
 
-Sorts an array by any value, determined by a ``hash-path-syntax``
+Sorts an array by any value, determined by a [Hash path syntax](#hash-path-syntax)
 Only expression elements are supported by this method:
 
 ```php
-$a = array(
-    0 => array('Person' => array('name' => 'Jeff')),
-    1 => array('Shirt' => array('color' => 'black'))
-);
+$a = [
+    0 => ['Person' => ['name' => 'Jeff']],
+    1 => ['Shirt' => ['color' => 'black']]
+];
 $result = Hash::sort($a, '{n}.Person.name', 'asc');
 /* $result now looks like:
-    Array
-    (
-        [0] => Array
-            (
-                [Shirt] => Array
-                    (
+    [
+        [0] => [
+                [Shirt] => [
                         [color] => black
-                    )
-            )
-        [1] => Array
-            (
-                [Person] => Array
-                    (
+                ]
+        ]
+        [1] => [
+                [Person] => [
                         [name] => Jeff
-                    )
-            )
-    )
+                ]
+        ]
+    ]
 */
 ```
 
@@ -662,25 +690,23 @@ can be one of the following values:
 Computes the difference between two arrays:
 
 ```php
-$a = array(
-    0 => array('name' => 'main'),
-    1 => array('name' => 'about')
-);
-$b = array(
-    0 => array('name' => 'main'),
-    1 => array('name' => 'about'),
-    2 => array('name' => 'contact')
-);
+$a = [
+    0 => ['name' => 'main'],
+    1 => ['name' => 'about']
+];
+$b = [
+    0 => ['name' => 'main'],
+    1 => ['name' => 'about'],
+    2 => ['name' => 'contact']
+];
 
 $result = Hash::diff($a, $b);
 /* $result now looks like:
-    Array
-    (
-        [2] => Array
-            (
+    [
+        [2] => [
                 [name] => contact
-            )
-    )
+        ]
+    ]
 */
 ```
 
@@ -692,42 +718,38 @@ data to the bottom of the resultant array.
 
 #### Example 1
 ```php
-$array1 = array('ModelOne' => array('id' => 1001, 'field_one' => 'a1.m1.f1', 'field_two' => 'a1.m1.f2'));
-$array2 = array('ModelOne' => array('id' => 1003, 'field_one' => 'a3.m1.f1', 'field_two' => 'a3.m1.f2', 'field_three' => 'a3.m1.f3'));
+$array1 = ['ModelOne' => ['id' => 1001, 'field_one' => 'a1.m1.f1', 'field_two' => 'a1.m1.f2']];
+$array2 = ['ModelOne' => ['id' => 1003, 'field_one' => 'a3.m1.f1', 'field_two' => 'a3.m1.f2', 'field_three' => 'a3.m1.f3']];
 $res = Hash::mergeDiff($array1, $array2);
 
 /* $res now looks like:
-    Array
-    (
-        [ModelOne] => Array
-            (
+    [
+        [ModelOne] => [
                 [id] => 1001
                 [field_one] => a1.m1.f1
                 [field_two] => a1.m1.f2
                 [field_three] => a3.m1.f3
-            )
-    )
+            ]
+    ]
 */
 ```
 
 #### Example 2
 ```php
-$array1 = array("a" => "b", 1 => 20938, "c" => "string");
-$array2 = array("b" => "b", 3 => 238, "c" => "string", array("extra_field"));
+$array1 = ["a" => "b", 1 => 20938, "c" => "string"];
+$array2 = ["b" => "b", 3 => 238, "c" => "string", ["extra_field"]];
 $res = Hash::mergeDiff($array1, $array2);
 /* $res now looks like:
-    Array
-    (
+    [
         [a] => b
         [1] => 20938
         [c] => string
         [b] => b
         [3] => 238
-        [4] => Array
-            (
+        [4] => [
                 [0] => extra_field
-            )
-    )
+        ]
+    ]
 */
 ```
 
@@ -740,51 +762,46 @@ converted to string keys with null values. Normalizing an array, makes using
 the results with `Hash::merge()` easier:
 
 ```php
-$a = array('Tree', 'CounterCache',
-    'Upload' => array(
+$a = ['Tree', 'CounterCache',
+    'Upload' => [
         'folder' => 'products',
-        'fields' => array('image_1_id', 'image_2_id')
-    )
-);
+        'fields' => ['image_1_id', 'image_2_id']
+    ]
+];
 $result = Hash::normalize($a);
 /* $result now looks like:
-    Array
-    (
+    [
         [Tree] => null
         [CounterCache] => null
-        [Upload] => Array
-            (
+        [Upload] => [
                 [folder] => products
-                [fields] => Array
-                    (
+                [fields] => [
                         [0] => image_1_id
                         [1] => image_2_id
-                    )
-            )
-    )
+                ]
+        ]
+    ]
 */
 
-$b = array(
-    'Cacheable' => array('enabled' => false),
+$b = [
+    'Cacheable' => ['enabled' => false],
     'Limit',
     'Bindable',
     'Validator',
     'Transactional'
-);
+];
 $result = Hash::normalize($b);
 /* $result now looks like:
-    Array
-    (
-        [Cacheable] => Array
-            (
+    [
+        [Cacheable] => [
                 [enabled] => false
-            )
+        ]
 
         [Limit] => null
         [Bindable] => null
         [Validator] => null
         [Transactional] => null
-    )
+    ]
 */
 ```
 
@@ -804,60 +821,62 @@ Used by methods like ``Model::find('threaded')``.
   Should be compatible with `Hash::extract()`. Defaults to ``{n}.$alias.parent_id``
 - ``root`` The id of the desired top-most result.
 
+For example, if you had the following array of data:
+
 #### Example:
 ```php
-$data = array(
-    array('ModelName' => array('id' => 1, 'parent_id' => null)),
-    array('ModelName' => array('id' => 2, 'parent_id' => 1)),
-    array('ModelName' => array('id' => 3, 'parent_id' => 1)),
-    array('ModelName' => array('id' => 4, 'parent_id' => 1)),
-    array('ModelName' => array('id' => 5, 'parent_id' => 1)),
-    array('ModelName' => array('id' => 6, 'parent_id' => null)),
-    array('ModelName' => array('id' => 7, 'parent_id' => 6)),
-    array('ModelName' => array('id' => 8, 'parent_id' => 6)),
-    array('ModelName' => array('id' => 9, 'parent_id' => 6)),
-    array('ModelName' => array('id' => 10, 'parent_id' => 6))
-);
+$data = [
+    ['ThreadPost' => ['id' => 1, 'parent_id' => null]],
+    ['ThreadPost' => ['id' => 2, 'parent_id' => 1]],
+    ['ThreadPost' => ['id' => 3, 'parent_id' => 1]],
+    ['ThreadPost' => ['id' => 4, 'parent_id' => 1]],
+    ['ThreadPost' => ['id' => 5, 'parent_id' => 1]],
+    ['ThreadPost' => ['id' => 6, 'parent_id' => null]],
+    ['ThreadPost' => ['id' => 7, 'parent_id' => 6]],
+    ['ThreadPost' => ['id' => 8, 'parent_id' => 6]],
+    ['ThreadPost' => ['id' => 9, 'parent_id' => 6]],
+    ['ThreadPost' => ['id' => 10, 'parent_id' => 6]]
+];
 
-$result = Hash::nest($data, array('root' => 6));
+$result = Hash::nest($data, ['root' => 6]);
 /* $result now looks like:
-array(
-        (int) 0 => array(
-            'ModelName' => array(
+    [
+        (int) 0 => [
+            'ThreadPost' => [
                 'id' => (int) 6,
                 'parent_id' => null
-            ),
-            'children' => array(
-                (int) 0 => array(
-                    'ModelName' => array(
+            ],
+            'children' => [
+                (int) 0 => [
+                    'ThreadPost' => [
                         'id' => (int) 7,
                         'parent_id' => (int) 6
-                    ),
-                    'children' => array()
-                ),
-                (int) 1 => array(
-                    'ModelName' => array(
+                    ],
+                    'children' => []
+                ],
+                (int) 1 => [
+                    'ThreadPost' => [
                         'id' => (int) 8,
                         'parent_id' => (int) 6
-                    ),
-                    'children' => array()
-                ),
-                (int) 2 => array(
-                    'ModelName' => array(
+                    ],
+                    'children' => []
+                ],
+                (int) 2 => [
+                    'ThreadPost' => [
                         'id' => (int) 9,
                         'parent_id' => (int) 6
-                    ),
-                    'children' => array()
-                ),
-                (int) 3 => array(
-                    'ModelName' => array(
+                    ],
+                    'children' => []
+                ],
+                (int) 3 => [
+                    'ThreadPost' => [
                         'id' => (int) 10,
                         'parent_id' => (int) 6
-                    ),
-                    'children' => array()
-                )
-            )
-        )
-    )
-*/
+                    ],
+                    'children' => []
+                ]
+            ]
+        ]
+    ]
+    */
 ```
